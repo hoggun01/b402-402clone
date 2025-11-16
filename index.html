@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>PT.BRONZE-402 Console</title>
 
     <!-- Google Fonts -->
@@ -144,8 +147,41 @@
       }
 
       .subtitle {
-        font-size: 0.8rem;
-        color: var(--muted);
+        font-family: 'Orbitron', system-ui, sans-serif;
+        font-size: 0.72rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        margin-top: 0.1rem;
+        background: linear-gradient(120deg, #f97316, #facc15, #22c55e);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow:
+          0 0 4px rgba(234, 179, 8, 0.9),
+          0 0 10px rgba(245, 158, 11, 0.9);
+        animation: subtitleGlow 6s ease-in-out infinite alternate;
+      }
+
+      @keyframes subtitleGlow {
+        0% {
+          background-position: 0% 50%;
+          text-shadow:
+            0 0 3px rgba(234, 179, 8, 0.7),
+            0 0 7px rgba(245, 158, 11, 0.7);
+        }
+        50% {
+          background-position: 100% 50%;
+          text-shadow:
+            0 0 4px rgba(249, 115, 22, 0.9),
+            0 0 13px rgba(234, 179, 8, 1);
+        }
+        100% {
+          background-position: 50% 100%;
+          text-shadow:
+            0 0 4px rgba(34, 197, 94, 0.9),
+            0 0 12px rgba(22, 163, 74, 0.9);
+        }
       }
 
       .badge {
@@ -342,9 +378,7 @@
         <div class="header-row">
           <div class="title-block">
             <h1>PT.BRONZE-402</h1>
-            <div class="subtitle">
-              Powered by CUPANG VENTURE
-            </div>
+            <div class="subtitle">Powered by CUPANG VENTURE</div>
           </div>
           <div class="top-right-controls">
             <div class="badge">
@@ -366,7 +400,7 @@
         <label>Private Key (user):</label>
         <input type="text" id="privateKey" placeholder="0x..." />
 
-        <label>Bearer Token (user):</label>
+        <label>Bearer Token (opsional, bebas):</label>
         <input type="text" id="bearer" placeholder="Bearer token" />
 
         <label>RPC Provider:</label>
@@ -386,13 +420,14 @@
           style="display: none"
         />
 
-        <label>Jumlah approve (2 - 5):</label>
+        <label>Jumlah mint (2 - 5 kali x 0.1 USDT):</label>
         <input type="number" id="count" value="2" min="2" max="5" />
 
         <small>
           Private key & bearer diisi masing-masing user di sini.<br />
-          Saat klik <b>Confirm</b>, backend akan mengirim transaksi
-          <code>approve(0.1 USDT)</code> sebanyak 2–5 kali di BSC.
+          Saat klik <b>Confirm</b>, backend akan mengirim payment flow B402:
+          <code>0.1 USDT</code> per mint (hingga 2–5 kali) dan kontrak B402 yang akan
+          trigger mint NFT.
         </small>
 
         <div class="row">
@@ -492,7 +527,7 @@
         log('? Music stopped.')
       }
 
-      // Auto-start music on load (browser bisa saja blok autoplay, tergantung policy)
+      // Auto-start music on load (bisa saja diblokir browser, tergantung policy)
       window.addEventListener('load', () => {
         startMusic()
       })
@@ -522,10 +557,6 @@
           alert('Private Key wajib diisi!')
           return
         }
-        if (!bearer) {
-          alert('Bearer wajib diisi! (boleh bebas, per user)')
-          return
-        }
         if (rpcSelect.value === 'custom' && !rpcUrl) {
           alert('Isi URL RPC custom terlebih dahulu!')
           return
@@ -533,7 +564,7 @@
 
         log('?? Confirm pressed.')
         log(`RPC: ${rpcUrl}`)
-        log(`Approve count: ${count}`)
+        log(`Mint count (x0.1 USDT): ${count}`)
         log('--------------------------')
 
         try {
@@ -542,26 +573,42 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               privateKey: realPrivateKey,
-              bearer,
               count,
               rpcUrl,
+              bearer, // dikirim kalau backend mau log
             }),
           })
 
           const data = await res.json()
 
-          if (data.success) {
-            log(`? All approve requests completed.`)
-            log(`Session ID: ${data.sessionId}`)
-            log(`RPC Used: ${data.rpcUsed}`)
-            data.responses.forEach((r) => {
-              let line = `Approve #${r.index}: status ${r.status}`
-              if (r.txHash) line += ` | tx=${r.txHash}`
-              if (r.blockNumber) line += ` | block=${r.blockNumber}`
-              log(line)
-            })
+          if (data.ok) {
+            log(`? Backend OK.`)
+            log(`Address: ${data.address}`)
+            log(`Loops: ${data.loops}`)
+            if (data.approveTxHash) {
+              log(`Approve Tx: ${data.approveTxHash}`)
+            }
+            if (Array.isArray(data.results)) {
+              data.results.forEach((r, idx) => {
+                const no = idx + 1
+                if (r.success) {
+                  const tx =
+                    r.txHash ||
+                    r.hash ||
+                    r.transactionHash ||
+                    '[txHash tidak terdeteksi]'
+                  log(`Mint #${no}: ? success | tx=${tx}`)
+                } else {
+                  log(
+                    `Mint #${no}: ? failed | error=${
+                      r.error || 'unknown error'
+                    }`
+                  )
+                }
+              })
+            }
           } else {
-            log('? Error: ' + JSON.stringify(data))
+            log('? Error: ' + (data.error || JSON.stringify(data)))
           }
         } catch (err) {
           log('? Exception: ' + err.message)
