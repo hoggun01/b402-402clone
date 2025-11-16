@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>B402 Relayer Frontend</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --card: #161b22;
+        --text: #c9d1d9;
+        --border: #30363d;
+        --accent: #58a6ff;
+      }
+
+      body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        margin: 2rem auto;
+        max-width: 700px;
+      }
+
+      h1 {
+        color: var(--accent);
+      }
+
+      input,
+      select,
+      button {
+        margin: 0.5rem 0;
+        padding: 0.6rem;
+        width: 100%;
+        font-size: 1rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text);
+        box-sizing: border-box;
+      }
+
+      input::placeholder {
+        color: #8b949e;
+      }
+
+      button {
+        cursor: pointer;
+        background: var(--accent);
+        color: white;
+        border: none;
+        font-weight: bold;
+        transition: background 0.2s;
+      }
+
+      button:hover {
+        background: #1f6feb;
+      }
+
+      #log {
+        white-space: pre-wrap;
+        background: var(--card);
+        padding: 1rem;
+        margin-top: 1rem;
+        border: 1px solid var(--border);
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: monospace;
+      }
+
+      .masked {
+        letter-spacing: 1px;
+      }
+
+      label {
+        font-weight: 600;
+        margin-top: 1rem;
+        display: block;
+      }
+
+      small {
+        color: #8b949e;
+        display: block;
+        margin-top: 0.2rem;
+      }
+
+      .row {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .row button {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>?? B402 Relayer Frontend</h1>
+
+    <label>Private Key (user):</label>
+    <input type="text" id="privateKey" placeholder="0x..." />
+
+    <label>Bearer Token (user):</label>
+    <input type="text" id="bearer" placeholder="Bearer token" />
+
+    <label>RPC Provider:</label>
+    <select id="rpcSelect">
+      <option value="https://bsc.blockrazor.xyz" selected>
+        Blockrazor RPC
+      </option>
+      <option value="https://bsc-dataseed.binance.org">Binance Seed</option>
+      <option value="https://bsc-rpc.publicnode.com">Public Node</option>
+      <option value="custom">Custom RPC (manual)</option>
+    </select>
+
+    <input
+      type="text"
+      id="rpcCustom"
+      placeholder="https://your-custom-rpc.com"
+      style="display: none"
+    />
+
+    <label>Jumlah approve (2 - 5):</label>
+    <input type="number" id="count" value="2" min="2" max="5" />
+
+    <small>
+      PK & bearer diisi user sendiri di sini. Saat klik "Send to Relayer":
+      backend akan kirim tx <code>approve(0.1 USDT)</code> sebanyak 2-5x.<br />
+      ?? Jangan gunakan wallet utama / besar untuk testing.
+    </small>
+
+    <div class="row">
+      <button id="sendBtn">?? Send to Relayer</button>
+      <button
+        type="button"
+        id="openExperience"
+        style="background:#238636;border-radius:6px;"
+      >
+        ?? Open b402 Experience
+      </button>
+    </div>
+
+    <h2>Logs</h2>
+    <div id="log"></div>
+
+    <script>
+      const rpcSelect = document.getElementById('rpcSelect')
+      const rpcCustom = document.getElementById('rpcCustom')
+      const logEl = document.getElementById('log')
+      const sendBtn = document.getElementById('sendBtn')
+      const privateKeyInput = document.getElementById('privateKey')
+      const openExperience = document.getElementById('openExperience')
+
+      // === Show/hide custom RPC field ===
+      rpcSelect.addEventListener('change', () => {
+        rpcCustom.style.display =
+          rpcSelect.value === 'custom' ? 'block' : 'none'
+      })
+
+      // === Masking Private Key (seperti 402) ===
+      let realPrivateKey = ''
+
+      privateKeyInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim()
+
+        // update real value
+        realPrivateKey = value
+
+        // masking only if > 15
+        if (value.length > 15) {
+          const visible = value.slice(0, 10)
+          const masked = '•'.repeat(value.length - 10)
+          privateKeyInput.value = visible + masked
+          privateKeyInput.classList.add('masked')
+        } else {
+          privateKeyInput.classList.remove('masked')
+        }
+      })
+
+      // === Logging ===
+      function log(message) {
+        logEl.textContent += message + '\n'
+        logEl.scrollTop = logEl.scrollHeight
+      }
+
+      // === Button: open Experience b402 ===
+      openExperience.addEventListener('click', () => {
+        log('?? Opening https://www.b402.ai/experience-b402 ...')
+        window.open(
+          'https://www.b402.ai/experience-b402',
+          '_blank',
+          'noopener,noreferrer'
+        )
+      })
+
+      // === Send request ===
+      sendBtn.addEventListener('click', async () => {
+        const bearer = document.getElementById('bearer').value.trim()
+        let count = parseInt(document.getElementById('count').value) || 2
+        const rpcUrl =
+          rpcSelect.value === 'custom'
+            ? rpcCustom.value.trim()
+            : rpcSelect.value
+
+        // clamp 2–5
+        if (count < 2) count = 2
+        if (count > 5) count = 5
+
+        if (!realPrivateKey) {
+          alert('Private Key wajib diisi!')
+          return
+        }
+        if (!bearer) {
+          alert('Bearer wajib diisi! (boleh bebas, per user)')
+          return
+        }
+        if (rpcSelect.value === 'custom' && !rpcUrl) {
+          alert('Isi URL RPC custom terlebih dahulu!')
+          return
+        }
+
+        log('?? Starting request...')
+        log(`RPC: ${rpcUrl}`)
+        log(`Approve count: ${count}`)
+        log('--------------------------')
+
+        try {
+          const res = await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              privateKey: realPrivateKey,
+              bearer,
+              count,
+              rpcUrl,
+            }),
+          })
+
+          const data = await res.json()
+
+          if (data.success) {
+            log(`? All approve requests completed.`)
+            log(`Session ID: ${data.sessionId}`)
+            log(`RPC Used: ${data.rpcUsed}`)
+            data.responses.forEach((r) => {
+              let line = `Approve #${r.index}: status ${r.status}`
+              if (r.txHash) line += ` | tx=${r.txHash}`
+              if (r.blockNumber) line += ` | block=${r.blockNumber}`
+              log(line)
+            })
+          } else {
+            log('? Error: ' + JSON.stringify(data))
+          }
+        } catch (err) {
+          log('? Exception: ' + err.message)
+        }
+      })
+    </script>
+  </body>
+</html>

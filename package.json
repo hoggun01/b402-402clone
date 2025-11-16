@@ -1,0 +1,12 @@
+{
+  "name": "b402-402clone",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node api/send.js"
+  },
+  "dependencies": {
+    "ethers": "^5.7.2"
+  }
+}
