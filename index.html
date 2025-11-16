@@ -400,7 +400,7 @@
         <label>Private Key (user):</label>
         <input type="text" id="privateKey" placeholder="0x..." />
 
-        <label>Bearer Token (opsional, bebas):</label>
+        <label>Bearer Token :</label>
         <input type="text" id="bearer" placeholder="Bearer token" />
 
         <label>RPC Provider:</label>
@@ -420,14 +420,11 @@
           style="display: none"
         />
 
-        <label>Jumlah mint (2 - 5 kali x 0.1 USDT):</label>
+        <label>Jumlah mint :</label>
         <input type="number" id="count" value="2" min="2" max="5" />
 
         <small>
           Private key & bearer diisi masing-masing user di sini.<br />
-          Saat klik <b>Confirm</b>, backend akan mengirim payment flow B402:
-          <code>0.1 USDT</code> per mint (hingga 2–5 kali) dan kontrak B402 yang akan
-          trigger mint NFT.
         </small>
 
         <div class="row">
