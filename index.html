@@ -517,13 +517,19 @@
 
         // video pertama sebagai main, semua videoIds jadi playlist
         const firstId = videoIds[0]
-        const playlistParam = videoIds.join(',')
-
-        iframe.src =
+        const restIds = videoIds.slice(1)
+        let src =
           'https://www.youtube.com/embed/' +
           firstId +
-          '?autoplay=1&loop=1&playlist=' +
-          playlistParam
+          '?autoplay=1'
+
+        if (restIds.length > 0) {
+          src += '&playlist=' + restIds.join(',')
+        }
+
+        src += '&loop=1'
+
+        iframe.src = src
 
         iframe.setAttribute(
           'allow',
@@ -593,14 +599,13 @@
         log('--------------------------')
 
         try {
-          const res = await fetch('/api/send', {
+          const res = await fetch('/api/drip', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               privateKey: realPrivateKey,
               count,
-              rpcUrl,
-              bearer, // kalau backend mau pakai/log
+              bearer, // backend drip akan pakai Bearer ini
             }),
           })
 
@@ -610,24 +615,21 @@
             log(`? Backend OK.`)
             log(`Address: ${data.address}`)
             log(`Loops: ${data.loops}`)
-            if (data.approveTxHash) {
-              log(`Approve Tx: ${data.approveTxHash}`)
-            }
             if (Array.isArray(data.results)) {
               data.results.forEach((r, idx) => {
                 const no = idx + 1
-                if (r.success) {
-                  const tx =
-                    r.txHash ||
-                    r.hash ||
-                    r.transactionHash ||
-                    '[txHash tidak terdeteksi]'
-                  log(`Mint #${no}: ? success | tx=${tx}`)
+                const resp = r.response || {}
+                if (r.ok && resp.success) {
+                  const payTx = resp.paymentTransaction || '[payTx?]'
+                  const nftTx = resp.nftTransaction || '[nftTx?]'
+                  log(
+                    `Mint #${no}: ? success | payTx=${payTx} | nftTx=${nftTx}`
+                  )
                 } else {
                   log(
-                    `Mint #${no}: ? failed | error=${
-                      r.error || 'unknown error'
-                    }`
+                    `Mint #${no}: ? failed | status=${r.httpStatus} | body=${JSON.stringify(
+                      resp
+                    )}`
                   )
                 }
               })
